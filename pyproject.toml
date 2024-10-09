@@ -9,7 +9,7 @@ dependencies = [
     "requests>=2.32.3",
     "xarray>=2024.9.0",
     "s3tethys>=0.1.4",
-    "tethys-data-models>=0.4.11",
+    "tethys-data-models @ git+https://github.com/quinnhornblow/tethys-data-models",
     "hdf5tools>=0.4.3",
     "scipy>=1.14.1",
     "shapely>=2.0.6",

@@ -82,7 +82,7 @@ six==1.16.0
     # via python-dateutil
 smart-open==7.0.5
     # via s3tethys
-tethys-data-models==0.4.11
+tethys-data-models @ git+https://github.com/quinnhornblow/tethys-data-models@378d43fd23d32d7db2e1ccf7c56766efa68b2599
     # via tethysts
 typing-extensions==4.12.2
     # via pydantic
