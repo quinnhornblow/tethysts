@@ -3,28 +3,29 @@ Created on 2020-11-05.
 
 @author: Mike K
 """
-import os
-import requests
-import numpy as np
-import xarray as xr
-import pandas as pd
-import orjson
-from datetime import datetime
-import copy
 import concurrent.futures
-from tethysts import utils
-# import utils
-from s3tethys import get_object_s3, s3_client, decompress_stream_to_object
-from typing import List, Union
-import tethys_data_models as tdm
+import copy
+import os
 import pathlib
+from datetime import datetime
+from typing import List, Union
+
+import orjson
+import pandas as pd
+import requests
+import tethys_data_models as tdm
+import xarray as xr
+
+# import utils
+from s3tethys import decompress_stream_to_object, get_object_s3, s3_client
+
+from tethysts import utils
 
 # pd.options.display.max_columns = 10
 
 
 ##############################################
 ### data models
-
 
 
 ##############################################
@@ -51,8 +52,13 @@ class Tethys(object):
     -------
     tethys object
     """
+
     ## Initial import and assignment function
-    def __init__(self, remotes: List[tdm.base.Remote] = None, cache: Union[pathlib.Path, str] = None):
+    def __init__(
+        self,
+        remotes: List[tdm.base.Remote] = None,
+        cache: Union[pathlib.Path, str] = None,
+    ):
         """
         The cache parameter might eventually include pymongo.database.Database.
 
@@ -72,21 +78,21 @@ class Tethys(object):
         cache : str, pathlib.Path, or None
             If the input is a path, then data will be cached locally. None will perform no caching.
         """
-        setattr(self, 'datasets', [])
-        setattr(self, '_datasets', {})
-        setattr(self, '_remotes', {})
-        setattr(self, '_stations', {})
-        setattr(self, '_key_patterns', tdm.utils.key_patterns)
+        setattr(self, "datasets", [])
+        setattr(self, "_datasets", {})
+        setattr(self, "_remotes", {})
+        setattr(self, "_stations", {})
+        setattr(self, "_key_patterns", tdm.utils.key_patterns)
         # setattr(self, '_results', {})
-        setattr(self, '_versions', {})
-        setattr(self, '_results_chunks', {})
+        setattr(self, "_versions", {})
+        setattr(self, "_results_chunks", {})
 
         if isinstance(cache, (str, pathlib.Path)):
             cache_path = pathlib.Path(cache)
             os.makedirs(cache_path, exist_ok=True)
-            setattr(self, 'cache', cache_path)
+            setattr(self, "cache", cache_path)
         else:
-            setattr(self, 'cache', None)
+            setattr(self, "cache", None)
 
         if isinstance(remotes, list):
             _ = self.get_datasets(remotes)
@@ -98,11 +104,10 @@ class Tethys(object):
             remotes = utils.read_json_zstd(resp.content)
             _ = self.get_datasets(remotes)
 
-        elif remotes != 'pass':
-            raise ValueError('remotes must be a list of dict or None.')
+        elif remotes != "pass":
+            raise ValueError("remotes must be a list of dict or None.")
 
         pass
-
 
     def get_datasets(self, remotes: List[dict], threads: int = 30):
         """
@@ -135,17 +140,18 @@ class Tethys(object):
             for remote in remotes:
                 # if not 'version' in remote:
                 #     remote['version'] = 2
-                remote_m = orjson.loads(tdm.base.Remote(**remote).json(exclude_none=True))
-                if 'description' in remote_m:
-                    _ = remote_m.pop('description')
+                remote_m = orjson.loads(
+                    tdm.base.Remote(**remote).json(exclude_none=True)
+                )
+                if "description" in remote_m:
+                    _ = remote_m.pop("description")
                 f = executor.submit(self._load_remote_datasets, remote_m)
                 futures.append(f)
             _ = concurrent.futures.wait(futures)
 
-        setattr(self, 'remotes', remotes)
+        setattr(self, "remotes", remotes)
 
         return self.datasets
-
 
     def _load_remote_datasets(self, remote: dict):
         """
@@ -170,35 +176,35 @@ class Tethys(object):
         try:
             get_dict = copy.deepcopy(remote)
 
-            version = get_dict.pop('version')
+            version = get_dict.pop("version")
 
-            get_dict['obj_key'] = self._key_patterns[version]['datasets']
+            get_dict["obj_key"] = self._key_patterns[version]["datasets"]
             ds_obj = get_object_s3(**get_dict)
-            ds_list = orjson.loads(decompress_stream_to_object(ds_obj, 'zstd').read())
+            ds_list = orjson.loads(decompress_stream_to_object(ds_obj, "zstd").read())
 
             # [l.pop('properties') for l in ds_list2]
             self.datasets.extend(ds_list)
 
-            ds_dict = {d['dataset_id']: d for d in ds_list}
+            ds_dict = {d["dataset_id"]: d for d in ds_list}
             remote_dict = {d: remote for d in ds_dict}
 
             self._datasets.update(ds_dict)
             self._remotes.update(remote_dict)
 
         except:
-            print('No datasets.json.zst file in S3 bucket')
+            print("No datasets.json.zst file in S3 bucket")
 
-
-    def get_stations(self,
-                     dataset_id: str,
-                     geometry: dict = None,
-                     lat: float = None,
-                     lon: float = None,
-                     distance: float = None,
-                     version_date: Union[str, datetime, pd.Timestamp] = None,
-                     from_date: Union[str, pd.Timestamp, datetime] = None,
-                     to_date: Union[str, pd.Timestamp, datetime] = None
-                     ):
+    def get_stations(
+        self,
+        dataset_id: str,
+        geometry: dict = None,
+        lat: float = None,
+        lon: float = None,
+        distance: float = None,
+        version_date: Union[str, datetime, pd.Timestamp] = None,
+        from_date: Union[str, pd.Timestamp, datetime] = None,
+        to_date: Union[str, pd.Timestamp, datetime] = None,
+    ):
         """
         Method to return the stations associated with a dataset.
 
@@ -227,10 +233,10 @@ class Tethys(object):
             of station data
         """
         remote = copy.deepcopy(self._remotes[dataset_id])
-        version = remote.pop('version')
+        version = remote.pop("version")
 
         vd = self._get_version_date(dataset_id, version_date)
-        stn_key = self._get_stns_rc_key(dataset_id, 'stations', vd)
+        stn_key = self._get_stns_rc_key(dataset_id, "stations", vd)
 
         run_get = True
 
@@ -241,23 +247,33 @@ class Tethys(object):
 
         if run_get:
             try:
-                remote['obj_key'] = stn_key
+                remote["obj_key"] = stn_key
                 stn_obj = get_object_s3(**remote)
-                stn_list = orjson.loads(decompress_stream_to_object(stn_obj, 'zstd').read())
-                stn_dict = {s['station_id']: s for s in stn_list if isinstance(s, dict)}
+                stn_list = orjson.loads(
+                    decompress_stream_to_object(stn_obj, "zstd").read()
+                )
+                stn_dict = {s["station_id"]: s for s in stn_list if isinstance(s, dict)}
                 utils.update_nested(self._stations, dataset_id, vd, stn_dict)
             except:
-                print('No stations.json.zst file in S3 bucket')
+                print("No stations.json.zst file in S3 bucket")
                 return None
 
         ## Temporal queries
         if isinstance(from_date, (str, pd.Timestamp, datetime)):
             from_date1 = pd.Timestamp(from_date)
-            stn_dict = {s_id: s for s_id, s in stn_dict.items() if pd.Timestamp(s['time_range']['from_date']) >= from_date1}
+            stn_dict = {
+                s_id: s
+                for s_id, s in stn_dict.items()
+                if pd.Timestamp(s["time_range"]["from_date"]) >= from_date1
+            }
 
         if isinstance(to_date, (str, pd.Timestamp, datetime)):
             to_date1 = pd.Timestamp(to_date)
-            stn_dict = {s_id: s for s_id, s in stn_dict.items() if pd.Timestamp(s['time_range']['to_date']) <= to_date1}
+            stn_dict = {
+                s_id: s
+                for s_id, s in stn_dict.items()
+                if pd.Timestamp(s["time_range"]["to_date"]) <= to_date1
+            }
 
         ## Spatial query
         stn_ids = utils.spatial_query(stn_dict, geometry, lat, lon, distance)
@@ -269,32 +285,28 @@ class Tethys(object):
 
         return stn_list1
 
-
     def _get_stns_rc_key(self, dataset_id: str, key_name, version_date: str = None):
-        """
-
-        """
-        if key_name not in ['results_chunks', 'stations']:
-            raise ValueError('key_name must be either results_chunks or stations.')
+        """ """
+        if key_name not in ["results_chunks", "stations"]:
+            raise ValueError("key_name must be either results_chunks or stations.")
 
         remote = copy.deepcopy(self._remotes[dataset_id])
-        system_version = remote.pop('version')
+        system_version = remote.pop("version")
 
         # Check version_date
         version_date = self._get_version_date(dataset_id, version_date)
 
         vd_key = utils.make_run_date_key(version_date)
-        stn_key = self._key_patterns[system_version][key_name].format(dataset_id=dataset_id, version_date=vd_key)
+        stn_key = self._key_patterns[system_version][key_name].format(
+            dataset_id=dataset_id, version_date=vd_key
+        )
 
         return stn_key
 
-
     def _get_results_chunks(self, dataset_id: str, version_date: str = None):
-        """
-
-        """
+        """ """
         remote = copy.deepcopy(self._remotes[dataset_id])
-        system_version = remote.pop('version')
+        system_version = remote.pop("version")
 
         run_get = True
 
@@ -304,19 +316,18 @@ class Tethys(object):
                 run_get = False
 
         if run_get:
-            rc_key = self._get_stns_rc_key(dataset_id, 'results_chunks', version_date)
+            rc_key = self._get_stns_rc_key(dataset_id, "results_chunks", version_date)
 
             remote1 = copy.deepcopy(remote)
 
-            remote1['obj_key'] = rc_key
+            remote1["obj_key"] = rc_key
             stn_obj = get_object_s3(**remote1)
 
-            rc_list = orjson.loads(decompress_stream_to_object(stn_obj, 'zstd').read())
+            rc_list = orjson.loads(decompress_stream_to_object(stn_obj, "zstd").read())
 
             utils.update_nested(self._results_chunks, dataset_id, version_date, rc_list)
 
         return rc_list
-
 
     def get_versions(self, dataset_id: str):
         """
@@ -333,13 +344,15 @@ class Tethys(object):
         """
         if dataset_id not in self._versions:
             remote = copy.deepcopy(self._remotes[dataset_id])
-            version = remote.pop('version')
+            version = remote.pop("version")
 
-            rv_key = self._key_patterns[version]['versions'].format(dataset_id=dataset_id)
-            remote['obj_key'] = rv_key
+            rv_key = self._key_patterns[version]["versions"].format(
+                dataset_id=dataset_id
+            )
+            remote["obj_key"] = rv_key
 
             rv_obj = get_object_s3(**remote)
-            rv_list = orjson.loads(decompress_stream_to_object(rv_obj, 'zstd').read())
+            rv_list = orjson.loads(decompress_stream_to_object(rv_obj, "zstd").read())
 
             self._versions[dataset_id] = rv_list
 
@@ -347,26 +360,24 @@ class Tethys(object):
 
         return versions
 
-
-    def _get_version_date(self, dataset_id: str, version_date: Union[str, pd.Timestamp] = None):
-        """
-
-        """
+    def _get_version_date(
+        self, dataset_id: str, version_date: Union[str, pd.Timestamp] = None
+    ):
+        """ """
         if dataset_id not in self._versions:
             versions = self.get_versions(dataset_id)
         else:
             versions = self._versions[dataset_id]
 
         if version_date is None:
-            vd = versions[-1]['version_date']
+            vd = versions[-1]["version_date"]
         else:
             vd = pd.Timestamp(version_date).tz_localize(None).isoformat()
-            vd_list = [v for v in versions if v['version_date'] == vd]
+            vd_list = [v for v in versions if v["version_date"] == vd]
             if len(vd_list) == 0:
-                raise ValueError('version_date is not available.')
+                raise ValueError("version_date is not available.")
 
         return vd
-
 
     def clear_cache(self, max_size=1000, max_age=7):
         """
@@ -384,54 +395,54 @@ class Tethys(object):
         None
         """
         if not isinstance(self.cache, pathlib.Path):
-            raise TypeError('The cache path must be set when initialising Tethys.')
+            raise TypeError("The cache path must be set when initialising Tethys.")
 
-        cache_gen1 = list(self.cache.rglob('*.nc'))
+        cache_gen1 = list(self.cache.rglob("*.nc"))
 
         stats1 = []
         for c in cache_gen1:
             stats = c.stat()
             stats1.append([str(c), stats.st_size, stats.st_mtime])
 
-        stats2 = pd.DataFrame(stats1, columns=['file_path', 'file_size', 'mtime'])
-        stats2['mtime'] = pd.to_datetime(stats2['mtime'], unit='s').round('s')
+        stats2 = pd.DataFrame(stats1, columns=["file_path", "file_size", "mtime"])
+        stats2["mtime"] = pd.to_datetime(stats2["mtime"], unit="s").round("s")
 
-        stats2 = stats2.sort_values('mtime')
-        stats2['file_cumsum'] = stats2['file_size'].cumsum()
+        stats2 = stats2.sort_values("mtime")
+        stats2["file_cumsum"] = stats2["file_size"].cumsum()
 
-        now1 = pd.Timestamp.now().round('s')
+        now1 = pd.Timestamp.now().round("s")
         then1 = now1 - pd.DateOffset(days=max_age)
 
-        rem1_bool = stats2['mtime'] < then1
-        rem2_bool = stats2['file_cumsum'] > (max_size*1000000)
+        rem1_bool = stats2["mtime"] < then1
+        rem2_bool = stats2["file_cumsum"] > (max_size * 1000000)
 
-        rem_files = stats2[rem1_bool | rem2_bool]['file_path'].tolist()
+        rem_files = stats2[rem1_bool | rem2_bool]["file_path"].tolist()
 
         if rem_files:
             for f in rem_files:
                 os.remove(f)
 
-
-    def get_results(self,
-                    dataset_id: str,
-                    station_ids: Union[str, List[str]] = None,
-                    geometry: dict = None,
-                    lat: float = None,
-                    lon: float = None,
-                    distance: float = None,
-                    from_date: Union[str, pd.Timestamp, datetime] = None,
-                    to_date: Union[str, pd.Timestamp, datetime] = None,
-                    from_mod_date: Union[str, pd.Timestamp, datetime] = None,
-                    to_mod_date: Union[str, pd.Timestamp, datetime] = None,
-                    version_date: Union[str, pd.Timestamp, datetime] = None,
-                    heights: Union[List[Union[int, float]], Union[int, float]] = None,
-                    bands: Union[List[int], int] = None,
-                    squeeze_dims: bool = False,
-                    output_path: Union[str, pathlib.Path] = None,
-                    compression: str = 'lzf',
-                    threads: int = 30,
-                    # include_chunk_vars: bool = False
-                    ):
+    def get_results(
+        self,
+        dataset_id: str,
+        station_ids: Union[str, List[str]] = None,
+        geometry: dict = None,
+        lat: float = None,
+        lon: float = None,
+        distance: float = None,
+        from_date: Union[str, pd.Timestamp, datetime] = None,
+        to_date: Union[str, pd.Timestamp, datetime] = None,
+        from_mod_date: Union[str, pd.Timestamp, datetime] = None,
+        to_mod_date: Union[str, pd.Timestamp, datetime] = None,
+        version_date: Union[str, pd.Timestamp, datetime] = None,
+        heights: Union[List[Union[int, float]], Union[int, float]] = None,
+        bands: Union[List[int], int] = None,
+        squeeze_dims: bool = False,
+        output_path: Union[str, pathlib.Path] = None,
+        compression: str = "lzf",
+        threads: int = 30,
+        # include_chunk_vars: bool = False
+    ):
         """
         Function to query the results data given a specific dataset_id and station_ids. Multiple optional outputs.
 
@@ -479,22 +490,22 @@ class Tethys(object):
         ## Get parameters
         dataset = self._datasets[dataset_id]
         # parameter = dataset['parameter']
-        if 'result_type' in dataset:
-            result_type = dataset['result_type']
+        if "result_type" in dataset:
+            result_type = dataset["result_type"]
         else:
-            result_type = ''
+            result_type = ""
         remote = copy.deepcopy(self._remotes[dataset_id])
-        version = remote.pop('version')
+        version = remote.pop("version")
 
         vd = self._get_version_date(dataset_id, version_date)
 
-        if 'chunk_parameters' in dataset:
-            time_interval = int(dataset['chunk_parameters']['time_interval'])
+        if "chunk_parameters" in dataset:
+            time_interval = int(dataset["chunk_parameters"]["time_interval"])
         else:
             time_interval = 0
 
         if isinstance(geometry, dict):
-            geom_type = geometry['type']
+            geom_type = geometry["type"]
         else:
             geom_type = None
 
@@ -502,7 +513,9 @@ class Tethys(object):
             stn_ids = [station_ids]
         elif isinstance(station_ids, list):
             stn_ids = station_ids
-        elif ((geom_type in ['Point', 'Polygon']) or (isinstance(lat, float) and isinstance(lon, float))):
+        elif (geom_type in ["Point", "Polygon"]) or (
+            isinstance(lat, float) and isinstance(lon, float)
+        ):
             ## Get all stations
             if dataset_id not in self._stations:
                 _ = self.get_stations(dataset_id, version_date=vd)
@@ -512,27 +525,38 @@ class Tethys(object):
             # Run the spatial query
             stn_ids = utils.spatial_query(stn_dict, geometry, lat, lon, distance)
         else:
-            raise ValueError('station_ids, point/polygon geometry, or a combination of lat and lon (with or without distance) must be passed.')
+            raise ValueError(
+                "station_ids, point/polygon geometry, or a combination of lat and lon (with or without distance) must be passed."
+            )
 
         ## Get results chunks
         rc_list = self._get_results_chunks(dataset_id, vd)
 
-        chunks = utils.chunk_filters(rc_list, stn_ids, time_interval, from_date, to_date, heights, bands, from_mod_date, to_mod_date)
+        chunks = utils.chunk_filters(
+            rc_list,
+            stn_ids,
+            time_interval,
+            from_date,
+            to_date,
+            heights,
+            bands,
+            from_mod_date,
+            to_mod_date,
+        )
 
         if chunks:
-
             ## Get results chunks
             with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
-                remote['cache'] = self.cache
-                if not 'public_url' in remote:
-                    s3 = s3_client(remote['connection_config'], threads)
-                    remote['s3'] = s3
+                remote["cache"] = self.cache
+                if "public_url" not in remote:
+                    s3 = s3_client(remote["connection_config"], threads)
+                    remote["s3"] = s3
 
                 futures = []
                 for chunk in chunks:
-                    remote['chunk'] = chunk
-                    remote['from_date'] = from_date
-                    remote['to_date'] = to_date
+                    remote["chunk"] = chunk
+                    remote["from_date"] = from_date
+                    remote["to_date"] = to_date
                     f = executor.submit(utils.download_results, **remote)
                     futures.append(f)
                 runs = concurrent.futures.wait(futures)
@@ -546,19 +570,34 @@ class Tethys(object):
             xr.backends.file_manager.FILE_CACHE.clear()
 
             ## combine results
-            xr3 = utils.results_concat(results_list, output_path=output_path, from_date=from_date, to_date=to_date, from_mod_date=from_mod_date, to_mod_date=to_mod_date, compression=compression)
+            xr3 = utils.results_concat(
+                results_list,
+                output_path=output_path,
+                from_date=from_date,
+                to_date=to_date,
+                from_mod_date=from_mod_date,
+                to_mod_date=to_mod_date,
+                compression=compression,
+            )
 
             ## Convert to new version
             attrs = xr3.attrs.copy()
-            if 'version' in attrs:
-                attrs['system_version'] = attrs.pop('version')
+            if "version" in attrs:
+                attrs["system_version"] = attrs.pop("version")
 
             ## Extra spatial query if data are stored in blocks
-            if ('grid' in result_type) and ((geom_type == 'Point') or (isinstance(lat, float) and isinstance(lon, float) and (distance is None))):
+            if ("grid" in result_type) and (
+                (geom_type == "Point")
+                or (
+                    isinstance(lat, float)
+                    and isinstance(lon, float)
+                    and (distance is None)
+                )
+            ):
                 xr3 = utils.get_nearest_from_extent(xr3, geometry, lat, lon)
 
             ## Filters
-            xr3.attrs['version_date'] = pd.Timestamp(vd).tz_localize(None).isoformat()
+            xr3.attrs["version_date"] = pd.Timestamp(vd).tz_localize(None).isoformat()
 
             if squeeze_dims:
                 xr3 = xr3.squeeze()
@@ -567,7 +606,6 @@ class Tethys(object):
             xr3 = xr.Dataset()
 
         return xr3
-
 
 
 ######################################

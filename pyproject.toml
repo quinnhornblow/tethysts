@@ -1,6 +1,35 @@
-[build-system]
-requires = [
-    "setuptools>=42",
-    "wheel"
+[project]
+name = "tethysts"
+version = "0.1.0"
+description = "Add your description here"
+authors = [{ name = "quinnhornblow", email = "quinn.hornblow@protonmail.com" }]
+dependencies = [
+    "orjson>=3.10.7",
+    "pandas>=2.2.3",
+    "requests>=2.32.3",
+    "xarray>=2024.9.0",
+    "s3tethys>=0.1.4",
+    "tethys-data-models>=0.4.11",
+    "hdf5tools>=0.4.3",
+    "scipy>=1.14.1",
+    "shapely>=2.0.6",
 ]
-build-backend = "setuptools.build_meta"
+readme = "README.md"
+requires-python = ">= 3.12"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = ["pytest>=8.3.3"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tethysts"]
+
+[tool.pytest.ini_options]
+pythonpath = "src"
