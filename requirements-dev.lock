@@ -12,18 +12,30 @@
 -e file:.
 annotated-types==0.7.0
     # via pydantic
+asciitree==0.3.3
+    # via zarr
 boto3==1.35.37
     # via s3tethys
 botocore==1.35.37
     # via boto3
     # via s3transfer
 certifi==2024.8.30
+    # via netcdf4
     # via requests
 cftime==1.6.4
     # via hdf5tools
+    # via netcdf4
+    # via xarray
 charset-normalizer==3.4.0
     # via requests
+fasteners==0.19
+    # via zarr
+fsspec==2024.9.0
+    # via xarray
+h5netcdf==1.4.0
+    # via xarray
 h5py==3.12.1
+    # via h5netcdf
     # via hdf5plugin
     # via hdf5tools
 hdf5plugin==5.0.0
@@ -37,25 +49,38 @@ iniconfig==2.0.0
 jmespath==1.0.1
     # via boto3
     # via botocore
+netcdf4==1.7.1.post2
+    # via xarray
+numcodecs==0.13.1
+    # via zarr
 numpy==2.1.2
     # via cftime
     # via h5py
+    # via netcdf4
+    # via numcodecs
     # via pandas
     # via scipy
     # via shapely
     # via xarray
+    # via zarr
 orjson==3.10.7
     # via tethys-data-models
     # via tethysts
 packaging==24.1
+    # via h5netcdf
+    # via pooch
     # via pytest
     # via xarray
 pandas==2.2.3
     # via s3tethys
     # via tethysts
     # via xarray
+platformdirs==4.3.6
+    # via pooch
 pluggy==1.5.0
     # via pytest
+pooch==1.8.2
+    # via xarray
 pydantic==2.9.2
     # via s3tethys
     # via tethys-data-models
@@ -68,6 +93,7 @@ python-dateutil==2.9.0.post0
 pytz==2024.2
     # via pandas
 requests==2.32.3
+    # via pooch
     # via s3tethys
     # via tethysts
 s3tethys==0.1.4
@@ -76,6 +102,7 @@ s3transfer==0.10.3
     # via boto3
 scipy==1.14.1
     # via tethysts
+    # via xarray
 shapely==2.0.6
     # via tethysts
 six==1.16.0
@@ -97,5 +124,7 @@ wrapt==1.16.0
 xarray==2024.9.0
     # via hdf5tools
     # via tethysts
+zarr==2.18.3
+    # via xarray
 zstandard==0.23.0
     # via s3tethys
